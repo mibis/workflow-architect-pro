@@ -7,7 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
     <style>
         :root { 
-            --sidebar-w: 460px; 
+            --sidebar-w: clamp(260px, 22vw, 340px); 
             --primary: #3d4f63; 
             --accent: #4f7cac; 
             --bg-page: #eef0f5;
@@ -33,7 +33,7 @@
             --decision-text: #fef3c7;
         }
         body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; display: flex; height: 100vh; background: var(--bg-page); color: var(--text-main); transition: 0.3s; }
-        .sidebar { width: var(--sidebar-w); background: var(--bg-sidebar); border-right: 1px solid var(--border-color); padding: 20px; overflow-y: auto; display: flex; flex-direction: column; }
+        .sidebar { width: var(--sidebar-w); background: var(--bg-sidebar); border-right: 1px solid var(--border-color); padding: 14px; overflow-y: auto; display: flex; flex-direction: column; }
         .step-card { background: var(--bg-card); border: 1px solid var(--border-color); padding: 0; margin-bottom: 8px; border-radius: 8px; position: relative; transition: all 0.2s; overflow: hidden; }
         .step-card:active { cursor: grabbing; }
         .step-card.dragging { opacity: 0.35; border-style: dashed; border-color: var(--accent); }
@@ -116,6 +116,12 @@
         /* validation badge in header */
         .val-badge { font-size: 11px; flex-shrink: 0; }
 
+        /* Intermediate stop badge */
+        .badge-interstop { background: #fee2e2; color: #991b1b; }
+        [data-theme="dark"] .badge-interstop { background: #7f1d1d; color: #fecaca; }
+        .badge-dualstart { background: #d1fae5; color: #065f46; }
+        [data-theme="dark"] .badge-dualstart { background: #064e3b; color: #6ee7b7; }
+
         /* Zoom / Pan controls */
         .zoom-bar { display: flex; gap: 4px; align-items: center; margin-bottom: 8px; }
         .zoom-btn { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-sidebar); color: var(--text-main); font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.1); transition: 0.15s; }
@@ -171,7 +177,7 @@
     <div class="brand-container">
         <div class="brand">
             <img src="https://img.icons8.com/ios-filled/50/2563eb/flow-chart.png" alt="Icon" width="24">
-            <h2 style="font-size: 1.1rem; margin:0;">Workflow Architect <span style="font-size:11px;color:#64748b;">v2.5</span> <span id="autosave-dot" title="Otomatik kaydedildi"></span></h2>
+            <h2 style="font-size: 1.1rem; margin:0;">Workflow Architect <span style="font-size:11px;color:#64748b;">v2.5</span> <span id="autosave-dot" title="Auto-saved"></span></h2>
         </div>
         <div class="theme-switcher" onclick="toggleTheme()"></div>
     </div>
@@ -184,12 +190,12 @@
     <hr style="width:100%; margin: 20px 0; border: 0; border-top: 1px solid var(--border-color);">
     
     <div class="history-bar">
-        <button class="btn-icon" id="undoBtn" onclick="undo()" disabled title="Geri Al (Ctrl+Z)">↩ Undo</button>
-        <button class="btn-icon" id="redoBtn" onclick="redo()" disabled title="İleri Al (Ctrl+Y)">↪ Redo</button>
+        <button class="btn-icon" id="undoBtn" onclick="undo()" disabled title="Undo (Ctrl+Z)">↩ Undo</button>
+        <button class="btn-icon" id="redoBtn" onclick="redo()" disabled title="Redo (Ctrl+Y)">↪ Redo</button>
     </div>
 
     <div class="accordion-controls">
-        <span>Steps <span id="stepCounter" class="step-counter">0 adım</span><span id="val-summary"></span></span>
+        <span>Steps <span id="stepCounter" class="step-counter">0 step</span><span id="val-summary"></span></span>
         <button class="collapse-toggle" onclick="toggleAllCards()" id="collapseToggleBtn">
             <div class="toggle-knob" id="collapseKnob"></div>
             <span id="collapseLabel">Expand All</span>
@@ -198,7 +204,7 @@
     <div id="stepsList"></div>
     <div id="validationPanel" class="validation-panel"></div>
     <button class="btn btn-add" onclick="addStep()">+ Add New Step</button>
-    <button class="btn btn-template" onclick="showTemplateModal()">📋 Load Template (12 hazır)</button>
+    <button class="btn btn-template" onclick="showTemplateModal()">📋 Load Template (12 ready)</button>
     
     <div style="margin-top: 30px; border-top: 2px solid var(--border-color); padding-top: 10px;">
         <button class="btn btn-export" onclick="exportMarkdown()">Copy Decorated Markdown</button>
@@ -219,10 +225,10 @@
             <span id="outVer" style="color: var(--text-label);">Version: 1.0</span>
         </div>
         <div class="zoom-bar">
-                <button class="zoom-btn" onclick="zoomOut()" title="Uzaklaştır">−</button>
+                <button class="zoom-btn" onclick="zoomOut()" title="Zoom Out">−</button>
                 <span class="zoom-level" id="zoomLabel">100%</span>
-                <button class="zoom-btn" onclick="zoomIn()" title="Yaklaştır">+</button>
-                <button class="zoom-btn" onclick="zoomReset()" title="Sıfırla" style="font-size:12px;">⊙</button>
+                <button class="zoom-btn" onclick="zoomIn()" title="Zoom In">+</button>
+                <button class="zoom-btn" onclick="zoomReset()" title="Reset" style="font-size:12px;">⊙</button>
             </div>
         <div id="diagram-wrap">
             <div id="diagram-inner">
@@ -236,7 +242,7 @@
 <div id="template-modal">
     <div id="modal-content">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-            <h2 style="margin:0;">📋 Choose a Ready Template (12 adet)</h2>
+            <h2 style="margin:0;">📋 Choose a Ready Template (12 units)</h2>
             <button onclick="hideTemplateModal()" style="background:none;border:none;font-size:28px;cursor:pointer;color:#64748b;">×</button>
         </div>
         <div id="template-grid" class="template-grid"></div>
@@ -244,16 +250,16 @@
 </div>
 
 <script>
-    let steps = [ /* varsayılan ECM */ 
-        { text: "COMPILE ANALYSIS REPORTS", type: "process", failTarget: "stop", notes: "Tüm analiz raporlarını birleştir ve özetle.", color: "", owner: "" },
-        { text: "DECISION: PUBLISH ?", type: "decision", failTarget: "stop", notes: "Yönetim onayı gerekiyor mu?", color: "", owner: "" },
-        { text: "PREPARE DRAFT & ATTACHMENTS", type: "process", failTarget: "stop", notes: "Taslak dosyayı hazırla, ekleri kontrol et.", color: "", owner: "" },
-        { text: "INTERNAL STAKEHOLDER REVIEW", type: "decision", failTarget: "2", notes: "Paydaşlardan feedback al.", color: "", owner: "" },
-        { text: "SUBMIT TO PUBLISHING ALIAS", type: "process", failTarget: "stop", notes: "Son hali publishing alias'a gönder.", color: "", owner: "" }
+    let steps = [ /* default */ 
+        { text: "COMPILE ANALYSIS REPORTS", type: "process", failTarget: "stop", yesTarget: "next", notes: "Combine and summarize all analysis reports.", color: "", owner: "", isIntermediateStop: false, dualStartLabel: "", extraLinks: [] },
+        { text: "DECISION: PUBLISH ?", type: "decision", failTarget: "stop", yesTarget: "next", notes: "Is management approval required?", color: "", owner: "", isIntermediateStop: false, dualStartLabel: "", extraLinks: [] },
+        { text: "PREPARE DRAFT & ATTACHMENTS", type: "process", failTarget: "stop", yesTarget: "next", notes: "Prepare the draft file, check the attachments.", color: "", owner: "", isIntermediateStop: false, dualStartLabel: "", extraLinks: [] },
+        { text: "INTERNAL STAKEHOLDER REVIEW", type: "decision", failTarget: "2", yesTarget: "next", notes: "Get feedback from stakeholders.", color: "", owner: "", isIntermediateStop: false, dualStartLabel: "", extraLinks: [] },
+        { text: "SUBMIT TO PUBLISHING ALIAS", type: "process", failTarget: "stop", yesTarget: "next", notes: "Send the final version to the publishing alias.", color: "", owner: "", isIntermediateStop: false, dualStartLabel: "", extraLinks: [] }
     ];
 
     const templates = [
-        { name: "ECM Publication Workflow", version: "2.1", steps: JSON.parse(JSON.stringify(steps)) },
+        { name: "Publication Workflow", version: "2.1", steps: JSON.parse(JSON.stringify(steps)) },
         { name: "Document Approval Process", version: "2.1", steps: [{text:"DRAFT DOCUMENT",type:"process",failTarget:"stop",notes:""},{text:"DECISION: NEEDS REVIEW?",type:"decision",failTarget:"0",notes:""},{text:"MANAGER APPROVAL",type:"process",failTarget:"stop",notes:""},{text:"DECISION: FINAL APPROVAL?",type:"decision",failTarget:"1",notes:""},{text:"PUBLISH DOCUMENT",type:"process",failTarget:"stop",notes:""}] },
         { name: "IT Change Management", version: "2.1", steps: [{text:"SUBMIT CHANGE REQUEST",type:"process",failTarget:"stop",notes:""},{text:"DECISION: APPROVED?",type:"decision",failTarget:"0",notes:""},{text:"IMPACT ANALYSIS",type:"process",failTarget:"stop",notes:""},{text:"CAB REVIEW",type:"decision",failTarget:"1",notes:""},{text:"IMPLEMENT CHANGE",type:"process",failTarget:"stop",notes:""},{text:"POST-IMPLEMENT REVIEW",type:"process",failTarget:"stop",notes:""}] },
         { name: "Incident Response", version: "2.1", steps: [{text:"DETECT INCIDENT",type:"process",failTarget:"stop",notes:""},{text:"DECISION: MAJOR INCIDENT?",type:"decision",failTarget:"stop",notes:""},{text:"CONTAINMENT",type:"process",failTarget:"stop",notes:""},{text:"ERADICATION & RECOVERY",type:"process",failTarget:"stop",notes:""},{text:"LESSONS LEARNED",type:"process",failTarget:"stop",notes:""}] },
@@ -278,7 +284,7 @@
             title: document.getElementById('inTitle').value,
             version: document.getElementById('inVer').value
         };
-        // Mevcut pozisyondan sonrasını sil
+        // Delete everything after the current position
         history = history.slice(0, historyIdx + 1);
         history.push(state);
         if (history.length > MAX_HISTORY) history.shift();
@@ -313,7 +319,7 @@
         document.getElementById('redoBtn').disabled = historyIdx >= history.length - 1;
     }
 
-    // Klavye kısayolları
+    // Keyboard shortcuts
     document.addEventListener('keydown', e => {
         if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
         if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
@@ -341,7 +347,7 @@
             localStorage.setItem(LS_KEY, JSON.stringify(data));
             const dot = document.getElementById('autosave-dot');
             if (dot) dot.classList.remove('dirty');
-        } catch(e) { /* localStorage dolu olabilir, sessiz geç */ }
+        } catch(e) { /* localStorage could be full, silent pass */ }
     }
 
     function loadFromLocalStorage() {
@@ -352,13 +358,37 @@
             if (!data.steps || !data.steps.length) return false;
             steps = data.steps.map(s => ({
                 text: s.text || 'Step', type: s.type || 'process',
-                failTarget: s.failTarget || 'stop', notes: s.notes || '',
-                color: s.color || '', owner: s.owner || ''
+                failTarget: s.failTarget || 'stop',
+                yesTarget: s.yesTarget || 'next',
+                notes: s.notes || '',
+                color: s.color || '', owner: s.owner || '',
+                isIntermediateStop: s.isIntermediateStop || false,
+                dualStartLabel: s.dualStartLabel || '',
+                extraLinks: Array.isArray(s.extraLinks) ? s.extraLinks : []
             }));
             document.getElementById('inTitle').value = data.title || '';
             document.getElementById('inVer').value = data.version || '1.0';
             return true;
         } catch(e) { return false; }
+    }
+
+    // ── Extra Link helpers ─────────────────────────────────────
+    function addExtraLink(stepIdx) {
+        snapshot();
+        if (!Array.isArray(steps[stepIdx].extraLinks)) steps[stepIdx].extraLinks = [];
+        steps[stepIdx].extraLinks.push({ target: '', label: '' });
+        renderSteps();
+    }
+    function removeExtraLink(stepIdx, linkIdx) {
+        snapshot();
+        steps[stepIdx].extraLinks.splice(linkIdx, 1);
+        renderSteps();
+    }
+    function updateExtraLink(stepIdx, linkIdx, key, val) {
+        if (!Array.isArray(steps[stepIdx].extraLinks)) steps[stepIdx].extraLinks = [];
+        steps[stepIdx].extraLinks[linkIdx][key] = val;
+        scheduleAutoSave();
+        draw();
     }
 
     // ── renderSteps, drag & drop ────────────────────────────────
@@ -472,7 +502,7 @@
         // Step counter güncelle
         const decisions = steps.filter(s => s.type === 'decision').length;
         const ctr = document.getElementById('stepCounter');
-        if (ctr) ctr.textContent = `${steps.length} adım · ${decisions} karar`;
+        if (ctr) ctr.textContent = `${steps.length} steps · ${decisions} decisions`;
 
         steps.forEach((s, i) => {
             const div = document.createElement('div');
@@ -505,10 +535,12 @@
                     <span class="color-dot" style="${dotStyle}"></span>
                     <span class="card-title">Step ${i+1} · ${shortTitle}</span>
                     ${ownerBadgeHtml}
+                    ${s.isIntermediateStop ? '<span title="Intermediate Stop" style="font-size:11px;opacity:0.7;flex-shrink:0;">🛑</span>' : ''}
+                    ${s.dualStartLabel ? '<span class="card-type-badge badge-dualstart" title="Represents a second entry point">⬡ Dual Start</span>' : ''}
                     <span class="card-type-badge ${badgeClass}">${badgeLabel}</span>
                     <span class="card-chevron">▼</span>
-                    <button class="dup-btn" onclick="duplicateStep(${i}); event.stopImmediatePropagation();" title="Kopyala">⧉</button>
-                    <button class="remove-btn-header" onclick="removeStep(${i}); event.stopImmediatePropagation();" title="Sil">✕</button>
+                    <button class="dup-btn" onclick="duplicateStep(${i}); event.stopImmediatePropagation();" title="Duplicate">⧉</button>
+                    <button class="remove-btn-header" onclick="removeStep(${i}); event.stopImmediatePropagation();" title="Remove">✕</button>
                 </div>
                 <div class="card-body">
                     <div class="card-body-inner">
@@ -516,7 +548,7 @@
                         <input type="text" value="${s.text}"
                             oninput="updateStep(${i}, 'text', this.value)"
                             onblur="refreshCardHeader(${i})">
-                        <label>Owner / Departman</label>
+                        <label>Owner / Department</label>
                         <input type="text" value="${s.owner || ''}" placeholder="e.g. IT, HR, Finance…"
                             onblur="updateStep(${i}, 'owner', this.value)"
                             onkeydown="if(event.key==='Enter') this.blur()">
@@ -525,13 +557,47 @@
                             <option value="process" ${s.type==='process'?'selected':''}>Action</option>
                             <option value="decision" ${s.type==='decision'?'selected':''}>Decision</option>
                         </select>
-                        <label>If No:</label>
+                        ${s.type === 'decision' ? `
+                        <label>✅ If Yes → Go to:</label>
+                        <select onchange="updateStep(${i}, 'yesTarget', this.value)">
+                            <option value="next" ${(s.yesTarget||'next')==='next'?'selected':''}>▶ Next Step (default)</option>
+                            <option value="stop" ${s.yesTarget==='stop'?'selected':''}>🛑 Stop</option>
+                            ${steps.map((_, idx) => idx !== i ? `<option value="${idx}" ${s.yesTarget==String(idx)?'selected':''}>↪ Step ${idx+1}${idx < i ? ' ↑' : ' ↓'}</option>` : '').join('')}
+                        </select>
+                        ` : ''}
+                        <label>❌ If No → Go to:</label>
                         <select onchange="updateStep(${i}, 'failTarget', this.value)">
                             <option value="stop" ${s.failTarget==='stop'?'selected':''}>🛑 Stop</option>
-                            ${steps.map((_, idx) => idx < i ? `<option value="${idx}" ${s.failTarget==String(idx)?'selected':''}>🔄 Step ${idx+1}</option>` : '').join('')}
+                            ${steps.map((_, idx) => idx < i ? `<option value="${idx}" ${s.failTarget==String(idx)?'selected':''}>↪ Step ${idx+1} ↑</option>` : '').join('')}
                         </select>
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:10px;">
+                            <input type="checkbox" ${s.isIntermediateStop ? 'checked' : ''} onchange="updateStep(${i}, 'isIntermediateStop', this.checked); event.stopPropagation();" style="width:auto;margin:0;">
+                            🛑 This step is an Intermediate Stop
+                        </label>
+                        <label style="margin-top:10px;">⬡ Dual Start — Second Entry Label</label>
+                        <input type="text" value="${s.dualStartLabel || ''}" placeholder="Leave empty to disable. E.g. START B"
+                            oninput="updateStep(${i}, 'dualStartLabel', this.value)"
+                            onblur="updateStep(${i}, 'dualStartLabel', this.value)">
                         <label>Color Label</label>
                         <div class="color-row">${swatchesHTML}</div>
+                        <div style="margin-top:12px; border-top:1px solid var(--border-color); padding-top:10px;">
+                            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                                <span style="font-size:11px;font-weight:700;color:var(--text-label);text-transform:uppercase;letter-spacing:0.4px;">➕ Extra Links</span>
+                                <button onclick="addExtraLink(${i}); event.stopPropagation();" style="font-size:11px;padding:2px 8px;border:1px solid var(--accent);border-radius:4px;background:none;color:var(--accent);cursor:pointer;">+ Add</button>
+                            </div>
+                            ${(s.extraLinks||[]).map((lnk, li) => `
+                            <div style="display:flex;gap:4px;align-items:center;margin-bottom:4px;">
+                                <select onchange="updateExtraLink(${i},${li},'target',this.value); event.stopPropagation();" style="flex:2;margin:0;font-size:12px;padding:4px;">
+                                    <option value="" ${lnk.target===''?'selected':''}>— Select target —</option>
+                                    <option value="stop" ${lnk.target==='stop'?'selected':''}>🛑 Stop</option>
+                                    ${steps.map((_, idx) => idx !== i ? `<option value="${idx}" ${lnk.target==String(idx)?'selected':''}>Step ${idx+1}${idx < i ? ' ↑':' ↓'}</option>` : '').join('')}
+                                </select>
+                                <input type="text" value="${lnk.label||''}" placeholder="Label (optional)"
+                                    oninput="updateExtraLink(${i},${li},'label',this.value)"
+                                    style="flex:1;margin:0;font-size:12px;padding:4px;">
+                                <button onclick="removeExtraLink(${i},${li}); event.stopPropagation();" style="padding:2px 6px;border:1px solid #ef4444;border-radius:4px;background:none;color:#ef4444;cursor:pointer;font-size:12px;flex-shrink:0;">✕</button>
+                            </div>`).join('')}
+                        </div>
                         <label>Details / Notes (optional)</label>
                         <textarea oninput="updateStep(${i}, 'notes', this.value)">${s.notes || ''}</textarea>
                     </div>
@@ -596,7 +662,7 @@
     function addStep() { 
         snapshot();
         const newIdx = steps.length;
-        steps.push({text: "New Step", type: "process", failTarget: "stop", notes: "", color: "", owner: ""}); 
+        steps.push({text: "New Step", type: "process", failTarget: "stop", yesTarget: "next", notes: "", color: "", owner: "", isIntermediateStop: false, dualStartLabel: "", extraLinks: []}); 
         expandedCards.add(newIdx);
         renderSteps(); 
     }
@@ -606,7 +672,7 @@
         steps.splice(i + 1, 0, copy);
         expandedCards.add(i + 1);
         renderSteps();
-        showToast(`⧉ Step ${i+1} kopyalandı`);
+        showToast(`⧉ Step ${i+1} duplicated`);
     }
     function removeStep(i) { 
         snapshot();
@@ -630,7 +696,7 @@
 
     function updateStep(i, key, val) { 
         steps[i][key] = val; 
-        if (key === 'type' || key === 'color' || key === 'owner') { snapshot(); renderSteps(); }
+        if (key === 'type' || key === 'color' || key === 'owner' || key === 'isIntermediateStop' || key === 'dualStartLabel' || key === 'yesTarget') { snapshot(); renderSteps(); }
         else { scheduleAutoSave(); draw(); }
     }
 
@@ -660,18 +726,42 @@
         const stroke = getComputedStyle(document.documentElement).getPropertyValue('--decision-stroke').trim();
         const textColor = getComputedStyle(document.documentElement).getPropertyValue('--decision-text').trim();
 
-        // Owner varsa swimlane (subgraph) ile grupla
-        const hasOwners = steps.some(s => s.owner && s.owner.trim());
-        let code = `graph TD\n  classDef decision fill:${fill},stroke:${stroke},stroke-width:2px,color:${textColor},font-weight:bold;\n  Start((START)) --> S0\n`;
+        // ── Dual Start detection ──────────────────────────────────
+        const hasDualStarts = steps.some(s => s.dualStartLabel && s.dualStartLabel.trim());
+        const dualStartSteps = steps.map((s, i) => ({s, i})).filter(({s}) => s.dualStartLabel && s.dualStartLabel.trim());
 
+        // ── Owner / swimlane detection ────────────────────────────
+        const hasOwners = steps.some(s => s.owner && s.owner.trim());
+
+        // ── Build Mermaid code ────────────────────────────────────
+        let code = `graph TD\n`;
+        code += `  classDef decision fill:${fill},stroke:${stroke},stroke-width:2px,color:${textColor},font-weight:bold;\n`;
+        code += `  classDef stopNode fill:#fee2e2,stroke:#ef4444,stroke-width:2px,color:#7f1d1d,font-weight:bold;\n`;
+        code += `  classDef startNode fill:#d1fae5,stroke:#059669,stroke-width:2px,color:#065f46,font-weight:bold;\n`;
+
+        // ── START node — dual start varsa tamamen yok, yoksa normal ──
+        const mainStartLabel = 'START';
+        if (hasDualStarts) {
+            // Node tanımlanmıyor — layout için S0'a görünmez ~~~ bağı yeter
+            // Mermaid ~~~ ile bağlanan node'u otomatik oluşturur ama label olmaz
+            // Bu yüzden hiçbir şey eklemiyoruz, layout S0 etrafında kendiliğinden oturur
+        } else {
+            // Normal: START → S0
+            code += `  Start(("${mainStartLabel}")) --> S0\n`;
+            code += `  class Start startNode\n`;
+        }
+
+        // ── Dual Start nodes → GÖRÜNMEZ (no node, no edge)
+        // Dual Start sadece hedef step'e olan bağ olarak işlenir
+        // Hiç node tanımlanmaz, Mermaid'de görünmez
+
+        // ── Step node tanımları (swimlane veya flat) ──────────────
         if (hasOwners) {
-            // Owners'ı sıralı unique listele (ilk görünüş sırasına göre)
             const ownerOrder = [];
             steps.forEach(s => {
                 const o = (s.owner || '').trim() || '—';
                 if (!ownerOrder.includes(o)) ownerOrder.push(o);
             });
-            // Her owner için subgraph
             ownerOrder.forEach(owner => {
                 const safeId = owner.replace(/[^a-zA-Z0-9]/g, '_');
                 code += `  subgraph ${safeId}["${owner}"]\n`;
@@ -694,6 +784,11 @@
             });
         }
 
+        // ── Dual Start bağları — DualStart node'u yok, doğrudan hedef step'e bağ da yok
+        // Dual Start sadece kart üzerinde tanımlı, diyagramda GÖRÜNMEZ
+        // (hiçbir edge eklenmez)
+
+        // ── Renk stilleri ─────────────────────────────────────────
         steps.forEach((s, i) => {
             if (s.color) {
                 const fontColor = getContrastColor(s.color);
@@ -702,12 +797,75 @@
             } else if (s.type === 'decision') {
                 code += `  class S${i} decision\n`;
             }
-            if (i < steps.length - 1) code += `  S${i}${s.type==='decision'?' -- YES --> ':' --> '}S${i+1}\n`;
-            else code += `  S${i} --> End((STOP))\n`;
-            if (s.failTarget !== 'stop') code += `  S${i} -- NO / REVISE --> S${s.failTarget}\n`;
-            else if (s.type === 'decision') code += `  S${i} -- NO --> End\n`;
         });
 
+        // ── Kenarlar (edges) ──────────────────────────────────────
+        // Global End node — declare once at end if needed
+        let needsEndNode = false;
+
+        steps.forEach((s, i) => {
+            const yt = s.yesTarget || 'next';
+
+            // ── YES / ileri kenar ─────────────────────────────────
+            if (s.type === 'decision') {
+                if (yt === 'stop') {
+                    code += `  S${i} -- YES --> End\n`;
+                    needsEndNode = true;
+                } else if (yt !== 'next') {
+                    code += `  S${i} -- YES --> S${yt}\n`;
+                } else {
+                    // next
+                    if (i < steps.length - 1) {
+                        code += `  S${i} -- YES --> S${i+1}\n`;
+                    } else {
+                        code += `  S${i} -- YES --> End\n`;
+                        needsEndNode = true;
+                    }
+                }
+            } else {
+                // Action step — normal forward
+                // isIntermediateStop: step'ten ileriye bağ çizilmez (flow burada biter)
+                // Ama eğer step'in failTarget/yesTarget varsa o bağlar çizilir
+                // Ara Stop — sadece mevcut step'ten ileriye otomatik ok engellenmez,
+                // kullanıcı If No ile önceki bir step'e bağlayabilir
+                if (!s.isIntermediateStop) {
+                    if (i < steps.length - 1) {
+                        code += `  S${i} --> S${i+1}\n`;
+                    } else {
+                        code += `  S${i} --> End\n`;
+                        needsEndNode = true;
+                    }
+                }
+                // isIntermediateStop ise ileri ok YOK — flow burada durur
+            }
+
+            // ── NO kenar (sadece Decision için) ──────────────────
+            if (s.type === 'decision') {
+                if (s.failTarget !== 'stop') {
+                    code += `  S${i} -- NO --> S${s.failTarget}\n`;
+                } else {
+                    code += `  S${i} -- NO --> End\n`;
+                    needsEndNode = true;
+                }
+            }
+
+            // ── Ek bağlantılar (extraLinks) ───────────────────────
+            (s.extraLinks || []).forEach(lnk => {
+                if (lnk.target === '' || lnk.target === null || lnk.target === undefined) return;
+                const edgeLabel = lnk.label ? ` -- ${lnk.label} --> ` : ` --> `;
+                if (lnk.target === 'stop') {
+                    code += `  S${i}${edgeLabel}End\n`;
+                    needsEndNode = true;
+                } else {
+                    code += `  S${i}${edgeLabel}S${lnk.target}\n`;
+                }
+            });
+        }); // end steps.forEach edges
+
+        // ── Ana End node ──────────────────────────────────────────
+        if (needsEndNode) {
+            code += `  End((STOP))\n  class End stopNode\n`;
+        }
         const box = document.getElementById('mermaid-render');
         box.removeAttribute('data-processed');
         box.innerHTML = code;
@@ -728,6 +886,8 @@
             txt += `[${i+1}] ${s.text.toUpperCase()}\n`;
             txt += `      Type: ${s.type === 'decision' ? 'Decision Point' : 'Standard Action'}\n`;
             if(s.type === 'decision') txt += `      Else: ${s.failTarget === 'stop' ? 'Terminate' : 'Return to Step ' + (parseInt(s.failTarget)+1)}\n`;
+            if (s.isIntermediateStop) txt += `      ⚑ Intermediate STOP: Yes\n`;
+            if (s.dualStartLabel) txt += `      ⬡ Dual Start Entry: ${s.dualStartLabel}\n`;
             if (s.notes && s.notes.trim() !== '') txt += `      Notes: ${s.notes}\n`;
             txt += "---------------------------\n";
         });
@@ -782,14 +942,20 @@
 
     function loadTemplate(idx) {
         const selected = templates[idx];
-        steps = JSON.parse(JSON.stringify(selected.steps));
+        steps = JSON.parse(JSON.stringify(selected.steps)).map(s => ({
+            ...s,
+            yesTarget: s.yesTarget || 'next',
+            isIntermediateStop: s.isIntermediateStop || false,
+            dualStartLabel: s.dualStartLabel || '',
+            extraLinks: Array.isArray(s.extraLinks) ? s.extraLinks : []
+        }));
         document.getElementById('inTitle').value = selected.name;
         document.getElementById('inVer').value = selected.version;
         hideTemplateModal();
         expandedCards = new Set();
         snapshot();
         renderSteps();
-        showToast(`✅ ${selected.name} yüklendi`);
+        showToast(`✅ ${selected.name} loaded`);
     }
 
     function showToast(msg) {
@@ -812,7 +978,7 @@
         const safeName = data.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
         a.download = `workflow_${safeName}_v${data.version}.json`;
         a.click();
-        showToast('💾 JSON kaydedildi!');
+        showToast('💾 JSON saved!');
     }
 
     function importJSON(event) {
@@ -822,22 +988,26 @@
         reader.onload = function(e) {
             try {
                 const data = JSON.parse(e.target.result);
-                if (!data.steps || !Array.isArray(data.steps)) throw new Error('Geçersiz format');
+                if (!data.steps || !Array.isArray(data.steps)) throw new Error('Invalid format');
                 steps = data.steps.map(s => ({
                     text: s.text || 'Step',
                     type: s.type || 'process',
                     failTarget: s.failTarget || 'stop',
+                    yesTarget: s.yesTarget || 'next',
                     notes: s.notes || '',
                     color: s.color || '',
-                    owner: s.owner || ''
+                    owner: s.owner || '',
+                    isIntermediateStop: s.isIntermediateStop || false,
+                    dualStartLabel: s.dualStartLabel || '',
+                    extraLinks: Array.isArray(s.extraLinks) ? s.extraLinks : []
                 }));
                 if (data.title) document.getElementById('inTitle').value = data.title;
                 if (data.version) document.getElementById('inVer').value = data.version;
                 expandedCards = new Set();
                 renderSteps();
-                showToast(`✅ "${data.title || 'Workflow'}" yüklendi — ${steps.length} adım`);
+                showToast(`✅ "${data.title || 'Workflow'}" loaded — ${steps.length} steps`);
             } catch(err) {
-                showToast('❌ Geçersiz JSON dosyası');
+                showToast('❌ Invalid JSON file');
             }
         };
         reader.readAsText(file);
@@ -851,27 +1021,36 @@
         steps.forEach((s, i) => {
             const label = (s.text || '').trim();
             // Empty label
-            if (!label) issues.push({ stepIdx: i, level: 'error', msg: `Step ${i+1}: Label boş olamaz.` });
+            if (!label) issues.push({ stepIdx: i, level: 'error', msg: `Step ${i+1}: Label cannot be empty.` });
             // Infinite loop — failTarget points to itself
             if (s.failTarget !== 'stop' && parseInt(s.failTarget) === i)
-                issues.push({ stepIdx: i, level: 'error', msg: `Step ${i+1}: "If No" kendine geri dönüyor — sonsuz döngü.` });
+                issues.push({ stepIdx: i, level: 'error', msg: `Step ${i+1}: "If No" points to itself — infinite loop.` });
             // failTarget out of range
             if (s.failTarget !== 'stop') {
                 const t = parseInt(s.failTarget);
                 if (isNaN(t) || t < 0 || t >= steps.length)
-                    issues.push({ stepIdx: i, level: 'error', msg: `Step ${i+1}: "If No" hedefi geçersiz (step silinmiş olabilir).` });
+                    issues.push({ stepIdx: i, level: 'error', msg: `Step ${i+1}: "If No" target is invalid (step may have been deleted).` });
+            }
+            // yesTarget validation
+            const yt = s.yesTarget || 'next';
+            if (s.type === 'decision' && yt !== 'next' && yt !== 'stop') {
+                const yt_i = parseInt(yt);
+                if (isNaN(yt_i) || yt_i < 0 || yt_i >= steps.length)
+                    issues.push({ stepIdx: i, level: 'error', msg: `Step ${i+1}: "If Yes" target is invalid (step may have been deleted).` });
+                if (yt_i === i)
+                    issues.push({ stepIdx: i, level: 'error', msg: `Step ${i+1}: "If Yes" points to itself — infinite loop.` });
             }
             // Decision with no failTarget set (always stops — might be intentional but warn)
             if (s.type === 'decision' && s.failTarget === 'stop')
-                issues.push({ stepIdx: i, level: 'warn', msg: `Step ${i+1}: Decision'ın "If No" yolu sona eriyor. Geri dönüş istenmiyor mu?` });
+                issues.push({ stepIdx: i, level: 'warn', msg: `Step ${i+1}: Decision's "If No" path terminates. Is this intentional?` });
             // Very long label
             if (label.length > 80)
-                issues.push({ stepIdx: i, level: 'warn', msg: `Step ${i+1}: Label çok uzun (${label.length} karakter) — diyagramda taşabilir.` });
+                issues.push({ stepIdx: i, level: 'warn', msg: `Step ${i+1}: Label is too long (${label.length} chars) — may overflow in diagram.` });
         });
 
         // No steps at all
         if (steps.length === 0)
-            issues.push({ stepIdx: -1, level: 'error', msg: 'Workflow boş — en az 1 adım ekleyin.' });
+            issues.push({ stepIdx: -1, level: 'error', msg: 'Workflow is empty — add at least 1 step.' });
 
         return issues;
     }
@@ -905,7 +1084,7 @@
         const warns  = issues.filter(i => i.level === 'warn');
 
         summary.className = errors.length ? 'has-errors' : 'has-warns';
-        summary.textContent = errors.length ? `⚠ ${errors.length} hata` : `⚠ ${warns.length} uyarı`;
+        summary.textContent = errors.length ? `⚠ ${errors.length} error(s)` : `⚠ ${warns.length} warning(s)`;
 
         panel.innerHTML = issues.map(iss => `
             <div class="validation-item validation-${iss.level}">
@@ -976,9 +1155,9 @@
         const title = document.getElementById('inTitle').value;
         const ver   = document.getElementById('inVer').value;
         const svgEl = document.querySelector('#mermaid-render svg');
-        if (!svgEl) { showToast('❌ Diyagram henüz hazır değil'); return; }
+        if (!svgEl) { showToast('❌ Diagram not ready yet'); return; }
 
-        showToast('⏳ PDF hazırlanıyor…');
+        showToast('⏳ Preparing PDF…');
 
         // Clone SVG and set explicit dimensions
         const clone = svgEl.cloneNode(true);
@@ -1035,7 +1214,7 @@
             a.download = `workflow_${safeName}_v${ver}.html`;
             a.click();
             setTimeout(() => URL.revokeObjectURL(url), 3000);
-            showToast('✅ PDF-ready HTML indirildi — tarayıcıda aç → Print → Save as PDF');
+            showToast('✅ PDF-ready HTML downloaded — open in browser → Print → Save as PDF');
         };
         img.onerror = () => showToast('❌ Diyagram render edilemedi');
         img.src = svgB64;
@@ -1043,7 +1222,7 @@
 
     window.onload = function() {
         const restored = loadFromLocalStorage();
-        if (restored) showToast('💾 Önceki çalışma geri yüklendi');
+        if (restored) showToast('💾 Previous session restored');
         renderSteps();
         snapshot();
     };
