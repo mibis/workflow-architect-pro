@@ -5,6 +5,15 @@ A zero-dependency, single-file browser application for building, visualizing, an
 ![Version](https://img.shields.io/badge/version-2.9-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![No Dependencies](https://img.shields.io/badge/dependencies-none-brightgreen)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Open%20App-2563eb?style=flat&logo=github)](https://mibis.github.io/workflow-architect-pro/Workflow_Builder_v2_9_6.html)
+
+---
+
+## 🚀 Try it instantly — no install needed
+
+**[▶ Open Live Demo](https://mibis.github.io/workflow-architect-pro/Workflow_Builder_v2_9_6.html)**
+
+> Works directly in your browser. Nothing to install, no account required.
 
 ---
 
