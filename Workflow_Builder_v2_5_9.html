@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <title>Workflow Architect Pro - v2.5</title>
+    <link rel="icon" href="https://img.icons8.com/ios-filled/50/2563eb/flow-chart.png" type="image/png">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+    <style>
+        :root { 
+            --sidebar-w: 460px; 
+            --primary: #3d4f63; 
+            --accent: #4f7cac; 
+            --bg-page: #eef0f5;
+            --bg-sidebar: #f5f3ef;
+            --bg-card: #ede9e3;
+            --text-main: #2d3142;
+            --text-label: #7a7f9a;
+            --border-color: #d8d3cb;
+            --decision-fill: #fdf3dc;
+            --decision-stroke: #e8b84b;
+            --decision-text: #7a5c1e;
+        }
+        [data-theme="dark"] {
+            --bg-page: #0f172a;
+            --bg-sidebar: #1e293b;
+            --bg-card: #334155;
+            --text-main: #f1f5f9;
+            --text-label: #94a3b8;
+            --border-color: #475569;
+            --primary: #f1f5f9;
+            --decision-fill: #453008;
+            --decision-stroke: #fbbf24;
+            --decision-text: #fef3c7;
+        }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; display: flex; height: 100vh; background: var(--bg-page); color: var(--text-main); transition: 0.3s; }
+        .sidebar { width: var(--sidebar-w); background: var(--bg-sidebar); border-right: 1px solid var(--border-color); padding: 20px; overflow-y: auto; display: flex; flex-direction: column; }
+        .step-card { background: var(--bg-card); border: 1px solid var(--border-color); padding: 0; margin-bottom: 8px; border-radius: 8px; position: relative; transition: all 0.2s; overflow: hidden; }
+        .step-card:active { cursor: grabbing; }
+        .step-card.dragging { opacity: 0.35; border-style: dashed; border-color: var(--accent); }
+        
+        /* Accordion header */
+        .card-header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; cursor: pointer; user-select: none; }
+        .card-header:hover { background: rgba(37,99,235,0.06); }
+        .grip { cursor: grab; font-size: 16px; opacity: 0.4; flex-shrink: 0; user-select: none; line-height: 1; transition: opacity 0.15s; }
+        .grip:hover { opacity: 0.9; }
+        .card-title { flex: 1; font-size: 12px; font-weight: 700; color: var(--text-main); text-transform: uppercase; letter-spacing: 0.4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .card-type-badge { font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; }
+        .badge-process { background: #dbeafe; color: #1d4ed8; }
+        .badge-decision { background: #fef9c3; color: #92400e; }
+        [data-theme="dark"] .badge-process { background: #1d4ed8; color: #bfdbfe; }
+        [data-theme="dark"] .badge-decision { background: #78350f; color: #fef3c7; }
+        .card-chevron { font-size: 10px; opacity: 0.5; flex-shrink: 0; transition: transform 0.2s; }
+        .step-card.expanded .card-chevron { transform: rotate(180deg); }
+        .remove-btn-header { color: var(--text-label); cursor: pointer; border: none; background: none; font-size: 14px; padding: 2px 4px; flex-shrink: 0; opacity: 0.6; }
+        .remove-btn-header:hover { opacity: 1; color: #ef4444; }
+        
+        /* Accordion body */
+        .card-body { overflow: hidden; max-height: 0; transition: max-height 0.25s ease-out; }
+        .step-card.expanded .card-body { max-height: 650px; transition: max-height 0.35s ease-in; }
+        .card-body-inner { padding: 4px 12px 12px 12px; border-top: 1px solid var(--border-color); }
+
+        /* Collapse All / Expand All toggle */
+        .accordion-controls { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+        .accordion-controls span { font-size: 11px; font-weight: 700; color: var(--text-label); text-transform: uppercase; letter-spacing: 0.5px; }
+        .collapse-toggle { display: flex; align-items: center; gap: 6px; cursor: pointer; background: none; border: 1px solid var(--border-color); border-radius: 20px; padding: 4px 10px; font-size: 11px; font-weight: 600; color: var(--text-label); transition: 0.2s; }
+        .collapse-toggle:hover { border-color: var(--accent); color: var(--accent); }
+        .toggle-knob { width: 28px; height: 14px; background: var(--border-color); border-radius: 7px; position: relative; transition: 0.2s; }
+        .toggle-knob:before { content: ''; position: absolute; width: 10px; height: 10px; border-radius: 50%; background: white; top: 2px; left: 2px; transition: 0.2s; }
+        .toggle-knob.all-expanded { background: var(--accent); }
+        .toggle-knob.all-expanded:before { left: 16px; }
+        /* Color label swatches */
+        .color-row { display: grid; grid-template-columns: repeat(12, 1fr); gap: 4px; margin-top: 6px; }
+        .color-swatch { width: 16px; height: 16px; border-radius: 3px; cursor: pointer; border: 2px solid transparent; transition: 0.15s; }
+        .color-swatch:hover { transform: scale(1.3); z-index: 1; position: relative; }
+        .color-swatch.active { border-color: var(--text-main); transform: scale(1.2); }
+        .color-swatch.swatch-default { background: var(--border-color) !important; border-radius: 50%; }
+        .color-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+        .btn-json-import { background: #7c3aed; color: white; }
+        .btn-json-export { background: #0891b2; color: white; }
+        /* Toast notification */
+        #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(60px); background: #1e293b; color: #f1f5f9; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; opacity: 0; transition: all 0.3s; z-index: 99999; pointer-events: none; }
+        #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        /* Hidden file input */
+        #jsonFileInput { display: none; }
+        /* Undo / Redo toolbar */
+        .history-bar { display: flex; gap: 6px; margin-bottom: 10px; }
+        .btn-icon { flex: 1; padding: 7px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-card); color: var(--text-label); cursor: pointer; font-size: 13px; font-weight: 600; transition: 0.15s; display: flex; align-items: center; justify-content: center; gap: 4px; }
+        .btn-icon:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: var(--bg-sidebar); }
+        .btn-icon:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        /* Step counter */
+        .step-counter { font-size: 11px; color: var(--text-label); background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 3px 10px; white-space: nowrap; }
+
+        /* Auto-save indicator */
+        #autosave-dot { width: 7px; height: 7px; border-radius: 50%; background: #22c55e; display: inline-block; margin-left: 6px; transition: background 0.3s; }
+        #autosave-dot.dirty { background: #f59e0b; }
+
+        /* Owner / Swimlane */
+        .owner-badge { font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; background: #e0f2fe; color: #0369a1; flex-shrink: 0; max-width: 70px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        [data-theme="dark"] .owner-badge { background: #0c4a6e; color: #7dd3fc; }
+
+        /* Duplicate button */
+        .dup-btn { color: var(--text-label); cursor: pointer; border: none; background: none; font-size: 13px; padding: 2px 4px; flex-shrink: 0; opacity: 0.5; }
+        .dup-btn:hover { opacity: 1; color: var(--accent); }
+
+        /* Validation */
+        .validation-panel { margin: 8px 0 4px 0; }
+        .validation-item { display: flex; align-items: flex-start; gap: 7px; padding: 7px 10px; border-radius: 6px; font-size: 12px; margin-bottom: 5px; line-height: 1.4; }
+        .validation-error { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+        .validation-warn  { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+        [data-theme="dark"] .validation-error { background: #450a0a; border-color: #7f1d1d; color: #fca5a5; }
+        [data-theme="dark"] .validation-warn  { background: #451a03; border-color: #78350f; color: #fde68a; }
+        .validation-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+        .step-card.has-error { border-left: 3px solid #ef4444 !important; }
+        .step-card.has-warn  { border-left: 3px solid #f59e0b !important; }
+        /* validation badge in header */
+        .val-badge { font-size: 11px; flex-shrink: 0; }
+
+        /* Zoom / Pan controls */
+        .zoom-bar { display: flex; gap: 4px; align-items: center; margin-bottom: 8px; }
+        .zoom-btn { width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-sidebar); color: var(--text-main); font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0,0,0,0.1); transition: 0.15s; }
+        .zoom-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .zoom-level { font-size: 11px; font-weight: 600; color: var(--text-label); display: flex; align-items: center; padding: 0 6px; background: var(--bg-sidebar); border: 1px solid var(--border-color); border-radius: 8px; min-width: 44px; justify-content: center; }
+        #diagram-wrap { position: relative; overflow: auto; cursor: grab; border-radius: 8px; min-height: 200px; background: var(--bg-page); }
+        #diagram-wrap:active { cursor: grabbing; }
+        #diagram-inner { transform-origin: top left; display: inline-block; }
+
+        /* PDF / export buttons */
+        .btn-pdf { background: #dc2626; color: white; }
+
+        /* Validation summary badge next to step counter */
+        #val-summary { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; margin-left: 6px; display: none; }
+        #val-summary.has-errors { background: #fef2f2; color: #991b1b; display: inline-block; }
+        #val-summary.has-warns  { background: #fffbeb; color: #92400e; display: inline-block; }
+
+        input, select, textarea { width: 100%; padding: 8px; margin-top: 5px; border: 1px solid var(--border-color); border-radius: 4px; box-sizing: border-box; font-size: 13px; background: var(--bg-sidebar); color: var(--text-main); }
+        textarea { height: 68px; resize: vertical; font-family: inherit; }
+        label { font-size: 11px; font-weight: bold; color: var(--text-label); display: block; margin-top: 8px; text-transform: uppercase; }
+        .btn { width: 100%; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-top: 8px; transition: 0.2s; }
+        .btn-add { background: #eff6ff; color: var(--accent); border: 1px dashed var(--accent); }
+        [data-theme="dark"] .btn-add { background: #1d4ed8; color: white; }
+        .btn-template { background: #10b981; color: white; }
+        .btn-export { background: var(--primary); color: var(--bg-sidebar); margin-top: 15px; }
+        [data-theme="dark"] .btn-export { background: #f1f5f9; color: #1e293b; }
+        .btn-svg { background: #059669; color: white; }
+        .remove-btn { position: absolute; right: 8px; top: 8px; color: var(--text-label); cursor: pointer; border: none; background: none; }
+        .preview { flex: 1; padding: 30px; overflow-y: auto; display: flex; flex-direction: column; align-items: center; }
+        #output-area { background: var(--bg-sidebar); padding: 30px; border-radius: 12px; border: 1px solid var(--border-color); width: 100%; max-width: 850px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+        .report-section { margin-top: 30px; padding-top: 20px; border-top: 2px solid var(--border-color); font-family: 'Courier New', Courier, monospace; font-size: 13px; white-space: pre-wrap; color: var(--text-main); }
+        .brand-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .brand { display: flex; align-items: center; gap: 10px; }
+        .theme-switcher { cursor: pointer; width: 44px; height: 22px; background: #64748b; border-radius: 12px; position: relative; transition: 0.3s; }
+        .theme-switcher:before { content: ''; position: absolute; width: 18px; height: 18px; border-radius: 50%; background: #ffffff; top: 2px; left: 2px; transition: 0.3s; }
+        [data-theme="dark"] .theme-switcher { background: #2563eb; }
+        [data-theme="dark"] .theme-switcher:before { left: 24px; }
+
+        /* MODAL */
+        #template-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.75); align-items: center; justify-content: center; z-index: 9999; }
+        #modal-content { background: var(--bg-sidebar); padding: 30px; border-radius: 12px; width: 92%; max-width: 1100px; max-height: 92vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        .template-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        .template-card { border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; background: var(--bg-card); cursor: pointer; transition: 0.2s; }
+        .template-card:hover { transform: translateY(-4px); border-color: var(--accent); box-shadow: 0 8px 20px rgba(37,99,235,0.15); }
+        .template-card h3 { margin: 0 0 8px 0; font-size: 1.1rem; }
+        .template-card p { font-size: 13px; color: var(--text-label); margin: 0 0 16px 0; }
+        .template-card button { width: 100%; padding: 9px; background: var(--accent); color: white; border: none; border-radius: 6px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="brand-container">
+        <div class="brand">
+            <img src="https://img.icons8.com/ios-filled/50/2563eb/flow-chart.png" alt="Icon" width="24">
+            <h2 style="font-size: 1.1rem; margin:0;">Workflow Architect <span style="font-size:11px;color:#64748b;">v2.5</span> <span id="autosave-dot" title="Otomatik kaydedildi"></span></h2>
+        </div>
+        <div class="theme-switcher" onclick="toggleTheme()"></div>
+    </div>
+    
+    <label>Doc Title</label>
+    <input type="text" id="inTitle" value="ECM Publication Workflow" oninput="draw(); scheduleAutoSave()">
+    <label>Version</label>
+    <input type="text" id="inVer" value="2.1" oninput="draw(); scheduleAutoSave()">
+    
+    <hr style="width:100%; margin: 20px 0; border: 0; border-top: 1px solid var(--border-color);">
+    
+    <div class="history-bar">
+        <button class="btn-icon" id="undoBtn" onclick="undo()" disabled title="Geri Al (Ctrl+Z)">↩ Undo</button>
+        <button class="btn-icon" id="redoBtn" onclick="redo()" disabled title="İleri Al (Ctrl+Y)">↪ Redo</button>
+    </div>
+
+    <div class="accordion-controls">
+        <span>Steps <span id="stepCounter" class="step-counter">0 adım</span><span id="val-summary"></span></span>
+        <button class="collapse-toggle" onclick="toggleAllCards()" id="collapseToggleBtn">
+            <div class="toggle-knob" id="collapseKnob"></div>
+            <span id="collapseLabel">Expand All</span>
+        </button>
+    </div>
+    <div id="stepsList"></div>
+    <div id="validationPanel" class="validation-panel"></div>
+    <button class="btn btn-add" onclick="addStep()">+ Add New Step</button>
+    <button class="btn btn-template" onclick="showTemplateModal()">📋 Load Template (12 hazır)</button>
+    
+    <div style="margin-top: 30px; border-top: 2px solid var(--border-color); padding-top: 10px;">
+        <button class="btn btn-export" onclick="exportMarkdown()">Copy Decorated Markdown</button>
+        <button class="btn btn-export" style="background:#475569" onclick="exportPlainText()">Download Plain Text Log</button>
+        <button class="btn btn-svg" onclick="exportSVG()">Download SVG</button>
+        <button class="btn btn-pdf" onclick="exportPDF()">🖨 Download PDF</button>
+        <button class="btn btn-json-export" onclick="exportJSON()" style="margin-top:8px;">💾 Save as JSON</button>
+        <button class="btn btn-json-import" onclick="document.getElementById('jsonFileInput').click()">📂 Load from JSON</button>
+        <input type="file" id="jsonFileInput" accept=".json" onchange="importJSON(event)">
+    </div>
+</div>
+<div id="toast"></div>
+
+<div class="preview">
+    <div id="output-area">
+        <div style="border-bottom: 2px solid var(--border-color); padding-bottom: 10px; margin-bottom: 20px;">
+            <h1 id="outTitle" style="margin:0; font-size: 24px;">Title</h1>
+            <span id="outVer" style="color: var(--text-label);">Version: 1.0</span>
+        </div>
+        <div class="zoom-bar">
+                <button class="zoom-btn" onclick="zoomOut()" title="Uzaklaştır">−</button>
+                <span class="zoom-level" id="zoomLabel">100%</span>
+                <button class="zoom-btn" onclick="zoomIn()" title="Yaklaştır">+</button>
+                <button class="zoom-btn" onclick="zoomReset()" title="Sıfırla" style="font-size:12px;">⊙</button>
+            </div>
+        <div id="diagram-wrap">
+            <div id="diagram-inner">
+                <div id="mermaid-render" class="mermaid"></div>
+            </div>
+        </div>
+        <div id="text-report" class="report-section"></div>
+    </div>
+</div>
+
+<div id="template-modal">
+    <div id="modal-content">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h2 style="margin:0;">📋 Choose a Ready Template (12 adet)</h2>
+            <button onclick="hideTemplateModal()" style="background:none;border:none;font-size:28px;cursor:pointer;color:#64748b;">×</button>
+        </div>
+        <div id="template-grid" class="template-grid"></div>
+    </div>
+</div>
+
+<script>
+    let steps = [ /* varsayılan ECM */ 
+        { text: "COMPILE ANALYSIS REPORTS", type: "process", failTarget: "stop", notes: "Tüm analiz raporlarını birleştir ve özetle.", color: "", owner: "" },
+        { text: "DECISION: PUBLISH ?", type: "decision", failTarget: "stop", notes: "Yönetim onayı gerekiyor mu?", color: "", owner: "" },
+        { text: "PREPARE DRAFT & ATTACHMENTS", type: "process", failTarget: "stop", notes: "Taslak dosyayı hazırla, ekleri kontrol et.", color: "", owner: "" },
+        { text: "INTERNAL STAKEHOLDER REVIEW", type: "decision", failTarget: "2", notes: "Paydaşlardan feedback al.", color: "", owner: "" },
+        { text: "SUBMIT TO PUBLISHING ALIAS", type: "process", failTarget: "stop", notes: "Son hali publishing alias'a gönder.", color: "", owner: "" }
+    ];
+
+    const templates = [
+        { name: "ECM Publication Workflow", version: "2.1", steps: JSON.parse(JSON.stringify(steps)) },
+        { name: "Document Approval Process", version: "2.1", steps: [{text:"DRAFT DOCUMENT",type:"process",failTarget:"stop",notes:""},{text:"DECISION: NEEDS REVIEW?",type:"decision",failTarget:"0",notes:""},{text:"MANAGER APPROVAL",type:"process",failTarget:"stop",notes:""},{text:"DECISION: FINAL APPROVAL?",type:"decision",failTarget:"1",notes:""},{text:"PUBLISH DOCUMENT",type:"process",failTarget:"stop",notes:""}] },
+        { name: "IT Change Management", version: "2.1", steps: [{text:"SUBMIT CHANGE REQUEST",type:"process",failTarget:"stop",notes:""},{text:"DECISION: APPROVED?",type:"decision",failTarget:"0",notes:""},{text:"IMPACT ANALYSIS",type:"process",failTarget:"stop",notes:""},{text:"CAB REVIEW",type:"decision",failTarget:"1",notes:""},{text:"IMPLEMENT CHANGE",type:"process",failTarget:"stop",notes:""},{text:"POST-IMPLEMENT REVIEW",type:"process",failTarget:"stop",notes:""}] },
+        { name: "Incident Response", version: "2.1", steps: [{text:"DETECT INCIDENT",type:"process",failTarget:"stop",notes:""},{text:"DECISION: MAJOR INCIDENT?",type:"decision",failTarget:"stop",notes:""},{text:"CONTAINMENT",type:"process",failTarget:"stop",notes:""},{text:"ERADICATION & RECOVERY",type:"process",failTarget:"stop",notes:""},{text:"LESSONS LEARNED",type:"process",failTarget:"stop",notes:""}] },
+        { name: "Employee Onboarding", version: "2.1", steps: [{text:"OFFER ACCEPTED",type:"process",failTarget:"stop",notes:""},{text:"PREPARE IT ACCESS",type:"process",failTarget:"stop",notes:""},{text:"DECISION: BACKGROUND CHECK PASS?",type:"decision",failTarget:"0",notes:""},{text:"WELCOME MEETING",type:"process",failTarget:"stop",notes:""},{text:"TRAINING & ACCESS GRANT",type:"process",failTarget:"stop",notes:""}] },
+        { name: "Purchase Request", version: "2.1", steps: [{text:"SUBMIT PURCHASE REQUEST",type:"process",failTarget:"stop",notes:""},{text:"DECISION: BUDGET APPROVED?",type:"decision",failTarget:"0",notes:""},{text:"VENDOR QUOTATION",type:"process",failTarget:"stop",notes:""},{text:"DECISION: FINAL APPROVAL?",type:"decision",failTarget:"1",notes:""},{text:"PLACE ORDER",type:"process",failTarget:"stop",notes:""}] },
+        { name: "Software Release Process", version: "2.1", steps: [{text:"CODE COMPLETE",type:"process",failTarget:"stop",notes:""},{text:"DECISION: QA PASSED?",type:"decision",failTarget:"0",notes:""},{text:"STAGING DEPLOY",type:"process",failTarget:"stop",notes:""},{text:"DECISION: UAT APPROVED?",type:"decision",failTarget:"2",notes:""},{text:"PRODUCTION DEPLOY",type:"process",failTarget:"stop",notes:""}] },
+        { name: "Expense Approval", version: "2.1", steps: [{text:"SUBMIT EXPENSE REPORT",type:"process",failTarget:"stop",notes:""},{text:"DECISION: < $500?",type:"decision",failTarget:"stop",notes:""},{text:"MANAGER APPROVAL",type:"process",failTarget:"stop",notes:""},{text:"DECISION: FINANCE REVIEW?",type:"decision",failTarget:"1",notes:""},{text:"REIMBURSEMENT",type:"process",failTarget:"stop",notes:""}] },
+        { name: "Recruitment Process", version: "2.1", steps: [{text:"JOB POSTING",type:"process",failTarget:"stop",notes:""},{text:"CV SCREENING",type:"process",failTarget:"stop",notes:""},{text:"DECISION: INTERVIEW?",type:"decision",failTarget:"stop",notes:""},{text:"INTERVIEW & ASSESSMENT",type:"process",failTarget:"stop",notes:""},{text:"OFFER & ONBOARD",type:"process",failTarget:"stop",notes:""}] },
+        { name: "Customer Complaint Handling", version: "2.1", steps: [{text:"RECEIVE COMPLAINT",type:"process",failTarget:"stop",notes:""},{text:"DECISION: URGENT?",type:"decision",failTarget:"stop",notes:""},{text:"INVESTIGATE",type:"process",failTarget:"stop",notes:""},{text:"DECISION: REFUND NEEDED?",type:"decision",failTarget:"2",notes:""},{text:"RESOLUTION & FOLLOW-UP",type:"process",failTarget:"stop",notes:""}] },
+        { name: "Contract Review & Approval", version: "2.1", steps: [{text:"RECEIVE CONTRACT",type:"process",failTarget:"stop",notes:""},{text:"LEGAL REVIEW",type:"process",failTarget:"stop",notes:""},{text:"DECISION: APPROVED?",type:"decision",failTarget:"0",notes:""},{text:"NEGOTIATION",type:"process",failTarget:"stop",notes:""},{text:"SIGN & ARCHIVE",type:"process",failTarget:"stop",notes:""}] },
+        { name: "Access Request (IAM)", version: "2.1", steps: [{text:"SUBMIT ACCESS REQUEST",type:"process",failTarget:"stop",notes:""},{text:"DECISION: MANAGER APPROVAL?",type:"decision",failTarget:"0",notes:""},{text:"SECURITY REVIEW",type:"process",failTarget:"stop",notes:""},{text:"DECISION: RISK ACCEPTED?",type:"decision",failTarget:"2",notes:""},{text:"GRANT ACCESS",type:"process",failTarget:"stop",notes:""}] }
+    ];
+
+    // ── Undo / Redo ────────────────────────────────────────────
+    let history = [];
+    let historyIdx = -1;
+    const MAX_HISTORY = 50;
+
+    function snapshot() {
+        const state = {
+            steps: JSON.parse(JSON.stringify(steps)),
+            title: document.getElementById('inTitle').value,
+            version: document.getElementById('inVer').value
+        };
+        // Mevcut pozisyondan sonrasını sil
+        history = history.slice(0, historyIdx + 1);
+        history.push(state);
+        if (history.length > MAX_HISTORY) history.shift();
+        historyIdx = history.length - 1;
+        updateHistoryUI();
+        scheduleAutoSave();
+    }
+
+    function undo() {
+        if (historyIdx <= 0) return;
+        historyIdx--;
+        restoreState(history[historyIdx]);
+    }
+
+    function redo() {
+        if (historyIdx >= history.length - 1) return;
+        historyIdx++;
+        restoreState(history[historyIdx]);
+    }
+
+    function restoreState(state) {
+        steps = JSON.parse(JSON.stringify(state.steps));
+        document.getElementById('inTitle').value = state.title;
+        document.getElementById('inVer').value = state.version;
+        expandedCards = new Set();
+        renderSteps();
+        updateHistoryUI();
+    }
+
+    function updateHistoryUI() {
+        document.getElementById('undoBtn').disabled = historyIdx <= 0;
+        document.getElementById('redoBtn').disabled = historyIdx >= history.length - 1;
+    }
+
+    // Klavye kısayolları
+    document.addEventListener('keydown', e => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redo(); }
+    });
+
+    // ── LocalStorage Auto-Save ─────────────────────────────────
+    const LS_KEY = 'workflow_architect_v24';
+    let autoSaveTimer = null;
+
+    function scheduleAutoSave() {
+        const dot = document.getElementById('autosave-dot');
+        if (dot) dot.classList.add('dirty');
+        clearTimeout(autoSaveTimer);
+        autoSaveTimer = setTimeout(doAutoSave, 1500);
+    }
+
+    function doAutoSave() {
+        try {
+            const data = {
+                title: document.getElementById('inTitle').value,
+                version: document.getElementById('inVer').value,
+                steps: steps,
+                savedAt: Date.now()
+            };
+            localStorage.setItem(LS_KEY, JSON.stringify(data));
+            const dot = document.getElementById('autosave-dot');
+            if (dot) dot.classList.remove('dirty');
+        } catch(e) { /* localStorage dolu olabilir, sessiz geç */ }
+    }
+
+    function loadFromLocalStorage() {
+        try {
+            const raw = localStorage.getItem(LS_KEY);
+            if (!raw) return false;
+            const data = JSON.parse(raw);
+            if (!data.steps || !data.steps.length) return false;
+            steps = data.steps.map(s => ({
+                text: s.text || 'Step', type: s.type || 'process',
+                failTarget: s.failTarget || 'stop', notes: s.notes || '',
+                color: s.color || '', owner: s.owner || ''
+            }));
+            document.getElementById('inTitle').value = data.title || '';
+            document.getElementById('inVer').value = data.version || '1.0';
+            return true;
+        } catch(e) { return false; }
+    }
+
+    // ── renderSteps, drag & drop ────────────────────────────────
+    let expandedCards = new Set();
+    let allExpanded = false;
+
+    function toggleCard(i, e) {
+        if (e) e.stopPropagation();
+        const card = document.querySelector(`.step-card[data-index="${i}"]`);
+        if (!card) return;
+        if (expandedCards.has(i)) {
+            expandedCards.delete(i);
+            card.classList.remove('expanded');
+        } else {
+            expandedCards.add(i);
+            card.classList.add('expanded');
+        }
+        updateCollapseToggleUI();
+    }
+
+    function toggleAllCards() {
+        allExpanded = !allExpanded;
+        if (allExpanded) {
+            expandedCards = new Set(steps.map((_, i) => i));
+        } else {
+            expandedCards = new Set();
+        }
+        document.querySelectorAll('.step-card').forEach(card => {
+            const i = parseInt(card.dataset.index);
+            allExpanded ? card.classList.add('expanded') : card.classList.remove('expanded');
+        });
+        updateCollapseToggleUI();
+    }
+
+    function updateCollapseToggleUI() {
+        const allExp = expandedCards.size === steps.length && steps.length > 0;
+        document.getElementById('collapseKnob').classList.toggle('all-expanded', allExp);
+        document.getElementById('collapseLabel').textContent = allExp ? 'Collapse All' : 'Expand All';
+        allExpanded = allExp;
+    }
+
+    const STEP_COLORS = [
+        { hex: "", label: "Default" },
+        // Reds
+        { hex: "#fca5a5", label: "Red 300" },
+        { hex: "#ef4444", label: "Red 500" },
+        { hex: "#b91c1c", label: "Red 700" },
+        // Oranges
+        { hex: "#fdba74", label: "Orange 300" },
+        { hex: "#f97316", label: "Orange 500" },
+        { hex: "#c2410c", label: "Orange 700" },
+        // Ambers
+        { hex: "#fcd34d", label: "Amber 300" },
+        { hex: "#f59e0b", label: "Amber 500" },
+        { hex: "#b45309", label: "Amber 700" },
+        // Yellows
+        { hex: "#fde047", label: "Yellow 400" },
+        { hex: "#eab308", label: "Yellow 500" },
+        { hex: "#854d0e", label: "Yellow 800" },
+        // Limes
+        { hex: "#bef264", label: "Lime 400" },
+        { hex: "#84cc16", label: "Lime 500" },
+        { hex: "#3f6212", label: "Lime 800" },
+        // Greens
+        { hex: "#86efac", label: "Green 300" },
+        { hex: "#22c55e", label: "Green 500" },
+        { hex: "#15803d", label: "Green 700" },
+        // Teals
+        { hex: "#5eead4", label: "Teal 300" },
+        { hex: "#14b8a6", label: "Teal 500" },
+        { hex: "#0f766e", label: "Teal 700" },
+        // Cyans
+        { hex: "#67e8f9", label: "Cyan 300" },
+        { hex: "#06b6d4", label: "Cyan 500" },
+        { hex: "#0e7490", label: "Cyan 700" },
+        // Blues
+        { hex: "#93c5fd", label: "Blue 300" },
+        { hex: "#3b82f6", label: "Blue 500" },
+        { hex: "#1d4ed8", label: "Blue 700" },
+        // Indigos
+        { hex: "#a5b4fc", label: "Indigo 300" },
+        { hex: "#6366f1", label: "Indigo 500" },
+        { hex: "#4338ca", label: "Indigo 700" },
+        // Violets
+        { hex: "#c4b5fd", label: "Violet 300" },
+        { hex: "#8b5cf6", label: "Violet 500" },
+        { hex: "#6d28d9", label: "Violet 700" },
+        // Purples
+        { hex: "#d8b4fe", label: "Purple 300" },
+        { hex: "#a855f7", label: "Purple 500" },
+        { hex: "#7e22ce", label: "Purple 700" },
+        // Pinks
+        { hex: "#f9a8d4", label: "Pink 300" },
+        { hex: "#ec4899", label: "Pink 500" },
+        { hex: "#be185d", label: "Pink 700" },
+        // Roses
+        { hex: "#fda4af", label: "Rose 300" },
+        { hex: "#f43f5e", label: "Rose 500" },
+        { hex: "#be123c", label: "Rose 700" },
+        // Grays
+        { hex: "#cbd5e1", label: "Slate 300" },
+        { hex: "#64748b", label: "Slate 500" },
+        { hex: "#334155", label: "Slate 700" },
+        { hex: "#1e293b", label: "Slate 900" },
+    ];
+
+    function renderSteps() {
+        const list = document.getElementById('stepsList');
+        list.innerHTML = '';
+
+        // Step counter güncelle
+        const decisions = steps.filter(s => s.type === 'decision').length;
+        const ctr = document.getElementById('stepCounter');
+        if (ctr) ctr.textContent = `${steps.length} adım · ${decisions} karar`;
+
+        steps.forEach((s, i) => {
+            const div = document.createElement('div');
+            const isExpanded = expandedCards.has(i);
+            div.className = 'step-card' + (isExpanded ? ' expanded' : '');
+            div.draggable = false;
+            div.dataset.index = i;
+            const badgeClass = s.type === 'decision' ? 'badge-decision' : 'badge-process';
+            const badgeLabel = s.type === 'decision' ? 'Decision' : 'Action';
+            const rawLabel = (s.text || '').trim();
+            const shortTitle = rawLabel.length > 0 ? (rawLabel.length > 22 ? rawLabel.substring(0, 20) + '…' : rawLabel) : `Step ${i+1}`;
+            const dotStyle = s.color ? `background:${s.color};` : 'background:var(--border-color);';
+            const ownerBadgeHtml = s.owner ? `<span class="owner-badge" title="${s.owner}">${s.owner}</span>` : '';
+            const swatchesHTML = STEP_COLORS.map(c => {
+                const bg = c.hex || 'var(--border-color)';
+                const isActive = (s.color || '') === c.hex ? ' active' : '';
+                const isDefault = c.hex === '' ? ' swatch-default' : '';
+                const lbl = c.hex ? `title="${c.label}"` : 'title="No color"';
+                return `<span class="color-swatch${isActive}${isDefault}" style="background:${bg}" ${lbl} onclick="updateStep(${i},'color','${c.hex}'); event.stopPropagation();"></span>`;
+            }).join('');
+            const colorStyle = s.color ? `border-left: 3px solid ${s.color};` : '';
+            div.setAttribute('style', colorStyle);
+
+            div.innerHTML = `
+                <div class="card-header" onclick="toggleCard(${i}, event)">
+                    <span class="grip" draggable="false"
+                        onmousedown="enableDrag(${i})"
+                        onmouseup="disableDrag(${i})"
+                        ontouchstart="enableDrag(${i})">⠿</span>
+                    <span class="color-dot" style="${dotStyle}"></span>
+                    <span class="card-title">Step ${i+1} · ${shortTitle}</span>
+                    ${ownerBadgeHtml}
+                    <span class="card-type-badge ${badgeClass}">${badgeLabel}</span>
+                    <span class="card-chevron">▼</span>
+                    <button class="dup-btn" onclick="duplicateStep(${i}); event.stopImmediatePropagation();" title="Kopyala">⧉</button>
+                    <button class="remove-btn-header" onclick="removeStep(${i}); event.stopImmediatePropagation();" title="Sil">✕</button>
+                </div>
+                <div class="card-body">
+                    <div class="card-body-inner">
+                        <label>Step Label</label>
+                        <input type="text" value="${s.text}"
+                            oninput="updateStep(${i}, 'text', this.value)"
+                            onblur="refreshCardHeader(${i})">
+                        <label>Owner / Departman</label>
+                        <input type="text" value="${s.owner || ''}" placeholder="e.g. IT, HR, Finance…"
+                            onblur="updateStep(${i}, 'owner', this.value)"
+                            onkeydown="if(event.key==='Enter') this.blur()">
+                        <label>Type</label>
+                        <select onchange="updateStep(${i}, 'type', this.value)">
+                            <option value="process" ${s.type==='process'?'selected':''}>Action</option>
+                            <option value="decision" ${s.type==='decision'?'selected':''}>Decision</option>
+                        </select>
+                        <label>If No:</label>
+                        <select onchange="updateStep(${i}, 'failTarget', this.value)">
+                            <option value="stop" ${s.failTarget==='stop'?'selected':''}>🛑 Stop</option>
+                            ${steps.map((_, idx) => idx < i ? `<option value="${idx}" ${s.failTarget==String(idx)?'selected':''}>🔄 Step ${idx+1}</option>` : '').join('')}
+                        </select>
+                        <label>Color Label</label>
+                        <div class="color-row">${swatchesHTML}</div>
+                        <label>Details / Notes (optional)</label>
+                        <textarea oninput="updateStep(${i}, 'notes', this.value)">${s.notes || ''}</textarea>
+                    </div>
+                </div>
+            `;
+            list.appendChild(div);
+        });
+        document.querySelectorAll('.step-card').forEach(card => {
+            card.addEventListener('dragstart', dragStart);
+            card.addEventListener('dragend', dragEnd);
+            card.addEventListener('dragover', dragOver);
+            card.addEventListener('dragleave', dragLeave);
+            card.addEventListener('drop', drop);
+        });
+        updateCollapseToggleUI();
+        draw();
+    }
+
+    function enableDrag(i) {
+        const card = document.querySelector(`.step-card[data-index="${i}"]`);
+        if (card) card.draggable = true;
+    }
+    function disableDrag(i) {
+        const card = document.querySelector(`.step-card[data-index="${i}"]`);
+        if (card) card.draggable = false;
+    }
+
+    function dragStart(e) { 
+        e.dataTransfer.setData('text/plain', this.dataset.index); 
+        this.classList.add('dragging'); 
+    }
+    function dragEnd() { 
+        this.classList.remove('dragging'); 
+        this.draggable = false;  // drag bitti, tekrar kapat
+    }
+    function dragOver(e) { e.preventDefault(); this.style.border = '2px dashed #2563eb'; }
+    function dragLeave() { this.style.border = ''; }
+    function drop(e) {
+        e.preventDefault(); this.style.border = '';
+        const draggedIdx = parseInt(e.dataTransfer.getData('text/plain'));
+        let targetIdx = parseInt(this.dataset.index);
+        if (draggedIdx === targetIdx) return;
+        const [moved] = steps.splice(draggedIdx, 1);
+        steps.splice(targetIdx, 0, moved);
+        steps.forEach(s => { if (s.failTarget !== 'stop') { const t = parseInt(s.failTarget); if (t < 0 || t >= steps.length) s.failTarget = 'stop'; }});
+        // Remap expanded indices after reorder
+        const newExpanded = new Set();
+        expandedCards.forEach(idx => {
+            if (idx === draggedIdx) { newExpanded.add(targetIdx); }
+            else {
+                let ni = idx;
+                if (draggedIdx < targetIdx) { if (idx > draggedIdx && idx <= targetIdx) ni = idx - 1; }
+                else { if (idx >= targetIdx && idx < draggedIdx) ni = idx + 1; }
+                newExpanded.add(ni);
+            }
+        });
+        expandedCards = newExpanded;
+        snapshot();
+        renderSteps();
+    }
+
+    function addStep() { 
+        snapshot();
+        const newIdx = steps.length;
+        steps.push({text: "New Step", type: "process", failTarget: "stop", notes: "", color: "", owner: ""}); 
+        expandedCards.add(newIdx);
+        renderSteps(); 
+    }
+    function duplicateStep(i) {
+        snapshot();
+        const copy = JSON.parse(JSON.stringify(steps[i]));
+        steps.splice(i + 1, 0, copy);
+        expandedCards.add(i + 1);
+        renderSteps();
+        showToast(`⧉ Step ${i+1} kopyalandı`);
+    }
+    function removeStep(i) { 
+        snapshot();
+        steps.splice(i, 1); 
+        const newExpanded = new Set();
+        expandedCards.forEach(idx => { if (idx < i) newExpanded.add(idx); else if (idx > i) newExpanded.add(idx - 1); });
+        expandedCards = newExpanded;
+        renderSteps(); 
+    }
+    function refreshCardHeader(i) {
+        const card = document.querySelector(`.step-card[data-index="${i}"]`);
+        if (!card) return;
+        const s = steps[i];
+        const rawLabel = (s.text || '').trim();
+        const shortTitle = rawLabel.length > 0
+            ? (rawLabel.length > 28 ? rawLabel.substring(0, 26) + '…' : rawLabel)
+            : `Step ${i + 1}`;
+        const titleEl = card.querySelector('.card-title');
+        if (titleEl) titleEl.textContent = `Step ${i + 1} · ${shortTitle}`;
+    }
+
+    function updateStep(i, key, val) { 
+        steps[i][key] = val; 
+        if (key === 'type' || key === 'color' || key === 'owner') { snapshot(); renderSteps(); }
+        else { scheduleAutoSave(); draw(); }
+    }
+
+    // Hex rengin luminance'ına göre siyah veya beyaz döner (WCAG formülü)
+    function getContrastColor(hex) {
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        // sRGB luminance
+        const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        return luminance > 0.55 ? '#1e293b' : '#ffffff';
+    }
+    async function draw() {
+        document.getElementById('outTitle').innerText = document.getElementById('inTitle').value;
+        document.getElementById('outVer').innerText = 'Version: ' + document.getElementById('inVer').value;
+
+        const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+        const theme = isDark ? 'dark' : 'neutral';
+        
+        mermaid.initialize({ 
+            startOnLoad: false, 
+            theme: theme,
+            themeVariables: { primaryColor: isDark ? '#334155' : '#ffffff', edgeColor: isDark ? '#94a3b8' : '#334155', lineColor: isDark ? '#94a3b8' : '#334155', fontFamily: 'Segoe UI' }
+        });
+
+        const fill = getComputedStyle(document.documentElement).getPropertyValue('--decision-fill').trim();
+        const stroke = getComputedStyle(document.documentElement).getPropertyValue('--decision-stroke').trim();
+        const textColor = getComputedStyle(document.documentElement).getPropertyValue('--decision-text').trim();
+
+        // Owner varsa swimlane (subgraph) ile grupla
+        const hasOwners = steps.some(s => s.owner && s.owner.trim());
+        let code = `graph TD\n  classDef decision fill:${fill},stroke:${stroke},stroke-width:2px,color:${textColor},font-weight:bold;\n  Start((START)) --> S0\n`;
+
+        if (hasOwners) {
+            // Owners'ı sıralı unique listele (ilk görünüş sırasına göre)
+            const ownerOrder = [];
+            steps.forEach(s => {
+                const o = (s.owner || '').trim() || '—';
+                if (!ownerOrder.includes(o)) ownerOrder.push(o);
+            });
+            // Her owner için subgraph
+            ownerOrder.forEach(owner => {
+                const safeId = owner.replace(/[^a-zA-Z0-9]/g, '_');
+                code += `  subgraph ${safeId}["${owner}"]\n`;
+                steps.forEach((s, i) => {
+                    const stepOwner = (s.owner || '').trim() || '—';
+                    if (stepOwner !== owner) return;
+                    const rawLabel = (s.text || '').trim();
+                    const label = rawLabel.length > 0 ? rawLabel : `Step ${i + 1}`;
+                    const shape = s.type === 'decision' ? `(["<b>?</b> ${label}"])` : `["${label}"]`;
+                    code += `    S${i}${shape}\n`;
+                });
+                code += `  end\n`;
+            });
+        } else {
+            steps.forEach((s, i) => {
+                const rawLabel = (s.text || '').trim();
+                const label = rawLabel.length > 0 ? rawLabel : `Step ${i + 1}`;
+                const shape = s.type === 'decision' ? `(["<b>?</b> ${label}"])` : `["${label}"]`;
+                code += `  S${i}${shape}\n`;
+            });
+        }
+
+        steps.forEach((s, i) => {
+            if (s.color) {
+                const fontColor = getContrastColor(s.color);
+                code += `  classDef color${i} fill:${s.color},stroke:${s.color},color:${fontColor},stroke-width:2px\n`;
+                code += `  class S${i} color${i}\n`;
+            } else if (s.type === 'decision') {
+                code += `  class S${i} decision\n`;
+            }
+            if (i < steps.length - 1) code += `  S${i}${s.type==='decision'?' -- YES --> ':' --> '}S${i+1}\n`;
+            else code += `  S${i} --> End((STOP))\n`;
+            if (s.failTarget !== 'stop') code += `  S${i} -- NO / REVISE --> S${s.failTarget}\n`;
+            else if (s.type === 'decision') code += `  S${i} -- NO --> End\n`;
+        });
+
+        const box = document.getElementById('mermaid-render');
+        box.removeAttribute('data-processed');
+        box.innerHTML = code;
+        // Önceki boyut cache'ini temizle
+        const oldSvg = box.querySelector('svg');
+        if (oldSvg) { delete oldSvg.dataset.origW; delete oldSvg.dataset.origH; }
+        try {
+            await mermaid.run({ nodes: [box] });
+        } catch(e) {
+            console.warn('Mermaid render skipped:', e.message);
+        }
+        // Render tamamlandı — mevcut zoom oranıyla uygula
+        applyZoom();
+
+        const ver = document.getElementById('inVer').value || '1.0';
+        let txt = `--- PROCEDURAL STEP LOG (v${ver}) ---\n`;
+        steps.forEach((s, i) => {
+            txt += `[${i+1}] ${s.text.toUpperCase()}\n`;
+            txt += `      Type: ${s.type === 'decision' ? 'Decision Point' : 'Standard Action'}\n`;
+            if(s.type === 'decision') txt += `      Else: ${s.failTarget === 'stop' ? 'Terminate' : 'Return to Step ' + (parseInt(s.failTarget)+1)}\n`;
+            if (s.notes && s.notes.trim() !== '') txt += `      Notes: ${s.notes}\n`;
+            txt += "---------------------------\n";
+        });
+        document.getElementById('text-report').innerText = txt;
+        renderValidation();
+    }
+
+    function toggleTheme() {
+        const current = document.documentElement.getAttribute("data-theme");
+        document.documentElement.setAttribute("data-theme", current === "light" ? "dark" : "light");
+        draw();
+    }
+
+    function exportMarkdown() {
+        let md = `# ${document.getElementById('inTitle').value}\n\n| ID | Description | Type | Notes |\n|---|---|---|---|\n`;
+        steps.forEach((s, i) => md += `| ${i+1} | ${s.text} | ${s.type} | ${s.notes || '-'} |\n`);
+        navigator.clipboard.writeText(md);
+        alert("✅ Markdown Copied!");
+    }
+
+    function exportPlainText() {
+        const blob = new Blob([document.getElementById('text-report').innerText], { type: 'text/plain' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'procedure_log_v2.1.txt'; a.click();
+    }
+
+    function exportSVG() {
+        const svg = document.querySelector('#mermaid-render svg').outerHTML;
+        const blob = new Blob([svg], { type: 'image/svg+xml' });
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'workflow_v2.1.svg'; a.click();
+    }
+
+    // Modal fonksiyonları
+    function showTemplateModal() {
+        const grid = document.getElementById('template-grid');
+        grid.innerHTML = '';
+        templates.forEach((t, idx) => {
+            const card = document.createElement('div');
+            card.className = 'template-card';
+            card.innerHTML = `
+                <h3>${t.name}</h3>
+                <p>${t.steps.length} steps • ${t.steps.filter(s => s.type==='decision').length} decisions</p>
+                <button onclick="loadTemplate(${idx}); event.stopImmediatePropagation();">Load This Template</button>
+            `;
+            grid.appendChild(card);
+        });
+        document.getElementById('template-modal').style.display = 'flex';
+    }
+
+    function hideTemplateModal() {
+        document.getElementById('template-modal').style.display = 'none';
+    }
+
+    function loadTemplate(idx) {
+        const selected = templates[idx];
+        steps = JSON.parse(JSON.stringify(selected.steps));
+        document.getElementById('inTitle').value = selected.name;
+        document.getElementById('inVer').value = selected.version;
+        hideTemplateModal();
+        expandedCards = new Set();
+        snapshot();
+        renderSteps();
+        showToast(`✅ ${selected.name} yüklendi`);
+    }
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2500);
+    }
+
+    function exportJSON() {
+        const data = {
+            title: document.getElementById('inTitle').value,
+            version: document.getElementById('inVer').value,
+            steps: steps,
+            exportedAt: new Date().toISOString()
+        };
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        const safeName = data.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        a.download = `workflow_${safeName}_v${data.version}.json`;
+        a.click();
+        showToast('💾 JSON kaydedildi!');
+    }
+
+    function importJSON(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+                if (!data.steps || !Array.isArray(data.steps)) throw new Error('Geçersiz format');
+                steps = data.steps.map(s => ({
+                    text: s.text || 'Step',
+                    type: s.type || 'process',
+                    failTarget: s.failTarget || 'stop',
+                    notes: s.notes || '',
+                    color: s.color || '',
+                    owner: s.owner || ''
+                }));
+                if (data.title) document.getElementById('inTitle').value = data.title;
+                if (data.version) document.getElementById('inVer').value = data.version;
+                expandedCards = new Set();
+                renderSteps();
+                showToast(`✅ "${data.title || 'Workflow'}" yüklendi — ${steps.length} adım`);
+            } catch(err) {
+                showToast('❌ Geçersiz JSON dosyası');
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = ''; // reset so same file can be re-imported
+    }
+
+    // ── Validation ─────────────────────────────────────────────
+    function validateSteps() {
+        const issues = []; // { stepIdx, level:'error'|'warn', msg }
+
+        steps.forEach((s, i) => {
+            const label = (s.text || '').trim();
+            // Empty label
+            if (!label) issues.push({ stepIdx: i, level: 'error', msg: `Step ${i+1}: Label boş olamaz.` });
+            // Infinite loop — failTarget points to itself
+            if (s.failTarget !== 'stop' && parseInt(s.failTarget) === i)
+                issues.push({ stepIdx: i, level: 'error', msg: `Step ${i+1}: "If No" kendine geri dönüyor — sonsuz döngü.` });
+            // failTarget out of range
+            if (s.failTarget !== 'stop') {
+                const t = parseInt(s.failTarget);
+                if (isNaN(t) || t < 0 || t >= steps.length)
+                    issues.push({ stepIdx: i, level: 'error', msg: `Step ${i+1}: "If No" hedefi geçersiz (step silinmiş olabilir).` });
+            }
+            // Decision with no failTarget set (always stops — might be intentional but warn)
+            if (s.type === 'decision' && s.failTarget === 'stop')
+                issues.push({ stepIdx: i, level: 'warn', msg: `Step ${i+1}: Decision'ın "If No" yolu sona eriyor. Geri dönüş istenmiyor mu?` });
+            // Very long label
+            if (label.length > 80)
+                issues.push({ stepIdx: i, level: 'warn', msg: `Step ${i+1}: Label çok uzun (${label.length} karakter) — diyagramda taşabilir.` });
+        });
+
+        // No steps at all
+        if (steps.length === 0)
+            issues.push({ stepIdx: -1, level: 'error', msg: 'Workflow boş — en az 1 adım ekleyin.' });
+
+        return issues;
+    }
+
+    function renderValidation() {
+        const issues = validateSteps();
+        const panel = document.getElementById('validationPanel');
+        const summary = document.getElementById('val-summary');
+
+        // Clear old error classes on cards
+        document.querySelectorAll('.step-card').forEach(c => {
+            c.classList.remove('has-error', 'has-warn');
+        });
+
+        // Apply error classes to cards
+        issues.forEach(iss => {
+            if (iss.stepIdx < 0) return;
+            const card = document.querySelector(`.step-card[data-index="${iss.stepIdx}"]`);
+            if (card) card.classList.add(iss.level === 'error' ? 'has-error' : 'has-warn');
+        });
+
+        // Render panel
+        if (issues.length === 0) {
+            panel.innerHTML = '';
+            summary.className = '';
+            summary.textContent = '';
+            return;
+        }
+
+        const errors = issues.filter(i => i.level === 'error');
+        const warns  = issues.filter(i => i.level === 'warn');
+
+        summary.className = errors.length ? 'has-errors' : 'has-warns';
+        summary.textContent = errors.length ? `⚠ ${errors.length} hata` : `⚠ ${warns.length} uyarı`;
+
+        panel.innerHTML = issues.map(iss => `
+            <div class="validation-item validation-${iss.level}">
+                <span class="validation-icon">${iss.level === 'error' ? '🔴' : '🟡'}</span>
+                <span>${iss.msg}</span>
+            </div>
+        `).join('');
+    }
+
+    // ── Zoom & Pan ─────────────────────────────────────────────
+    let zoomLevel = 1;
+    let panX = 0, panY = 0;
+    let isPanning = false, panStartX = 0, panStartY = 0, panStartSL = 0, panStartST = 0;
+
+    function applyZoom() {
+        const svg = document.querySelector('#mermaid-render svg');
+        if (!svg) return;
+
+        // Orijinal boyutları data attribute'dan oku, yoksa kaydet
+        if (!svg.dataset.origW) {
+            svg.dataset.origW = svg.getBoundingClientRect().width  || svg.viewBox.baseVal.width  || 600;
+            svg.dataset.origH = svg.getBoundingClientRect().height || svg.viewBox.baseVal.height || 400;
+        }
+        const origW = parseFloat(svg.dataset.origW);
+        const origH = parseFloat(svg.dataset.origH);
+
+        svg.style.width  = (origW * zoomLevel) + 'px';
+        svg.style.height = (origH * zoomLevel) + 'px';
+        svg.style.display = 'block';
+
+        document.getElementById('zoomLabel').textContent = Math.round(zoomLevel * 100) + '%';
+    }
+
+    function zoomIn()    { zoomLevel = Math.min(zoomLevel + 0.15, 3);   applyZoom(); }
+    function zoomOut()   { zoomLevel = Math.max(zoomLevel - 0.15, 0.3); applyZoom(); }
+    function zoomReset() { zoomLevel = 1; applyZoom(); }
+
+    // Mouse wheel zoom
+    document.addEventListener('DOMContentLoaded', () => {
+        const wrap = document.getElementById('diagram-wrap');
+        if (!wrap) return;
+
+        wrap.addEventListener('wheel', e => {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? -0.1 : 0.1;
+            zoomLevel = Math.min(Math.max(zoomLevel + delta, 0.3), 3);
+            applyZoom();
+        }, { passive: false });
+
+        // Pan with mouse drag — scroll the overflow:auto container
+        wrap.addEventListener('mousedown', e => {
+            if (e.target.closest('.zoom-btn, .zoom-level')) return;
+            isPanning = true;
+            wrap.style.cursor = 'grabbing';
+            panStartX = e.clientX; panStartY = e.clientY;
+            panStartSL = wrap.scrollLeft; panStartST = wrap.scrollTop;
+        });
+        document.addEventListener('mousemove', e => {
+            if (!isPanning) return;
+            wrap.scrollLeft = panStartSL - (e.clientX - panStartX);
+            wrap.scrollTop  = panStartST - (e.clientY - panStartY);
+        });
+        document.addEventListener('mouseup', () => { isPanning = false; wrap.style.cursor = 'grab'; });
+    });
+
+    // ── PDF Export ─────────────────────────────────────────────
+    function exportPDF() {
+        const title = document.getElementById('inTitle').value;
+        const ver   = document.getElementById('inVer').value;
+        const svgEl = document.querySelector('#mermaid-render svg');
+        if (!svgEl) { showToast('❌ Diyagram henüz hazır değil'); return; }
+
+        showToast('⏳ PDF hazırlanıyor…');
+
+        // Clone SVG and set explicit dimensions
+        const clone = svgEl.cloneNode(true);
+        const bbox  = svgEl.getBoundingClientRect();
+        const W = Math.max(bbox.width,  400);
+        const H = Math.max(bbox.height, 300);
+        clone.setAttribute('width',  W);
+        clone.setAttribute('height', H);
+        clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+
+        // Inline all computed styles so fonts render in canvas
+        const svgData = new XMLSerializer().serializeToString(clone);
+        const svgB64  = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+
+        const img = new Image();
+        img.onload = () => {
+            const scale  = 2;
+            const canvas = document.createElement('canvas');
+            canvas.width  = W * scale;
+            canvas.height = H * scale;
+            const ctx = canvas.getContext('2d');
+            ctx.scale(scale, scale);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, W, H);
+            ctx.drawImage(img, 0, 0, W, H);
+
+            // Build a full PDF-ready HTML as blob and download via <a>
+            const imgData = canvas.toDataURL('image/png');
+            const logText = document.getElementById('text-report').innerText.replace(/</g,'&lt;');
+            const dateStr = new Date().toLocaleDateString('tr-TR');
+
+            const html = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>${title} v${ver}</title>
+<style>
+  body{font-family:'Segoe UI',sans-serif;margin:40px;color:#1e293b;max-width:900px;}
+  h1{font-size:22px;margin:0 0 4px;}
+  .sub{color:#64748b;font-size:13px;margin-bottom:28px;}
+  img{max-width:100%;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:32px;display:block;}
+  pre{background:#f8fafc;border:1px solid #e2e8f0;padding:20px;border-radius:8px;font-size:12px;white-space:pre-wrap;font-family:'Courier New',monospace;}
+  @media print{body{margin:20px;} .no-print{display:none;}}
+</style></head><body>
+<h1>${title}</h1>
+<div class="sub">Version: ${ver} &nbsp;·&nbsp; ${dateStr}</div>
+<img src="${imgData}">
+<pre>${logText}</pre>
+</body></html>`;
+
+            const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+            const url  = URL.createObjectURL(blob);
+            const a    = document.createElement('a');
+            const safeName = title.replace(/[^a-z0-9]/gi,'_').toLowerCase();
+            a.href     = url;
+            a.download = `workflow_${safeName}_v${ver}.html`;
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(url), 3000);
+            showToast('✅ PDF-ready HTML indirildi — tarayıcıda aç → Print → Save as PDF');
+        };
+        img.onerror = () => showToast('❌ Diyagram render edilemedi');
+        img.src = svgB64;
+    }
+
+    window.onload = function() {
+        const restored = loadFromLocalStorage();
+        if (restored) showToast('💾 Önceki çalışma geri yüklendi');
+        renderSteps();
+        snapshot();
+    };
+</script>
+</body>
+</html>
